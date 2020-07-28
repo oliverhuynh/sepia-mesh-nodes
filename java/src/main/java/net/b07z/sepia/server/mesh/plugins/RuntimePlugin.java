@@ -14,35 +14,44 @@ import net.b07z.sepia.server.core.tools.RuntimeInterface.RuntimeResult;
  * 
  * @author Florian Quirin
  */
-public class RuntimePlugin implements Plugin {
-
+public class RuntimePlugin implements Plugin {		
+	
 	@Override
 	public PluginResult execute(JSONObject data) {
 		//Get runtime command
 		JSONArray cmd = JSON.getJArray(data, "command");
-		long timeout = JSON.getLongOrDefault(data, "timeout", 5000);
+		// long timeout = JSON.getLongOrDefault(data, "timeout", 5000);
 		
 		if (Is.notNullOrEmpty(cmd)){
-			RuntimeResult cmdResult = RuntimeInterface.runCommand(Converters.jsonArrayToStringList(cmd), timeout);
+			String[] x;
+			x = Converters.jsonArrayToStringList(cmd).toArray(new String[0]);
+            RuntimeResult cmdResult = RuntimeInterface.runCommand(x, false);
 			
-			//Command finished without errors
-			if (cmdResult.getStatusCode() == 0){
-				PluginResult result = new PluginResult(JSON.make(
-						"status", "success",
-						"command", cmd.toString(),
+			//Command finished without errors 
+            JSONObject outjson;            
+            try {
+            	outjson = JSON.parseString(String.join("", cmdResult.getOutput()));            	
+            }
+            catch (Exception e) {
+            	outjson = JSON.make(						
 						"data", cmdResult.getOutput()
-				));
+				);
+            }
+			if (cmdResult.getStatusCode() == 0){
+				PluginResult result = new PluginResult(JSON.deepMerge(outjson, JSON.make(
+						"status", "success",
+						"command", cmd.toString()
+				)));
 				return result;
 			
 			//Command had errors
 			}else{
-				PluginResult result = new PluginResult(JSON.make(
+				PluginResult result = new PluginResult(JSON.deepMerge(outjson, JSON.make(
 						"status", "fail",
 						"command", cmd.toString(),
 						"error", cmdResult.getException(),
-						"code", cmdResult.getStatusCode(),
-						"data", cmdResult.getOutput()
-				));
+						"code", cmdResult.getStatusCode()
+				)));
 				return result;
 			}
 			
